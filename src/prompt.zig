@@ -5,6 +5,7 @@
 //
 
 const std = @import("std");
+const task = @import("task.zig");
 
 pub const Color = enum {
     Black,
@@ -68,7 +69,8 @@ pub const Command = union(enum) {
     ReturnCode: ReturnCode,
     HorizontalRule: u8,
     Tilde,
-    ExternalCmd,
+    AsyncTask,
+    Task,
 
     pub fn format(
         self: Command,
