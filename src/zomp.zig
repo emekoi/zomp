@@ -31,7 +31,14 @@ usingnamespace if (@import("root") == @This())
                     else => {},
                 }
             }
-            return path;
+
+            return mem.trimRight(u8, path, "/");
+        }
+
+        fn trimWhileLeft(slice: []u8, strip: []const u8) usize {
+            var idx: usize = 0;
+            while (idx < slice.len and slice[idx] == strip[idx]) : (idx += 1) {}
+            return idx;
         }
 
         fn truncatePath(allocator: *Allocator, path: []u8, home: []const u8) []const u8 {
@@ -39,20 +46,32 @@ usingnamespace if (@import("root") == @This())
                 path[home.len - 1] = '~';
                 path = path[home.len - 1 ..];
             } else {
-                if (path[path.len - 1] == '/') {
-                    path = path[0 .. path.len - 1];
-                }
+                path = path[trimWhileLeft(path, home) - 1 ..];
+                path[0] = '/';
             }
 
-            var end = (mem.indexOf(u8, path, "/") orelse 0) + 1;
+            std.debug.warn("-> {}\n", path);
+
+            const end = mem.indexOf(u8, path, "/") orelse 0;
+
             var start = mem.lastIndexOf(u8, path[0..], "/") orelse 0;
             start = mem.lastIndexOf(u8, path[0..start], "/") orelse start;
 
-            if (path[start..].len > 1 and path[0..end].len > 1) {
-                return mem.join(allocator, "..", [_][]u8{path[0..end], path[start..]}) catch path;
+            if (end == 0) {
+                return mem.join(allocator, "...", [_][]const u8{ "", path[start..] }) catch path;
             } else {
-                return path;
+                return mem.join(allocator, "...", [_][]const u8{ path[0..end + 1], path[start..] }) catch path;
             }
+
+            // std.debug.warn("-> {}\n", path[start..]);
+
+            // if (path[start..].len > 1 and path[0..end].len > 0) {
+            //     return mem.join(allocator, "..", [_][]u8{ path[0..end], path[start..] }) catch path;
+            // } else if (path[start..].len > 1) {
+            //     return path[start..];
+            // } else {
+            //     return path;
+            // }
         }
 
         pub fn main() void {
@@ -75,7 +94,11 @@ usingnamespace if (@import("root") == @This())
                 break :blk cwd;
             };
 
-            var cmd = [_]Command{
+            // std.debug.warn("");
+
+            var stdout = std.io.getStdOut() catch return;
+            var stream = &stdout.outStream().stream;
+            flushCmds(stream, [_]Command{
                 Command.Bright,
                 Command{ .ForeGround = .Red },
                 Command{ .ReturnCode = ReturnCode{} },
@@ -86,10 +109,6 @@ usingnamespace if (@import("root") == @This())
                 Command{ .Text = cwd },
                 Command.Reset,
                 Command{ .Text = "\n%% " },
-            };
-
-            var stdout = std.io.getStdOut() catch return;
-            var stream = &stdout.outStream().stream;
-            flushCmds(stream, cmd);
+            });
         }
     };
